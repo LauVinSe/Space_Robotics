@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  
+  <arg name="filename_image" value="$(find random_walk)/config/intel_map.jpg" />
+  <arg name="filename_yaml" value="$(find random_walk)/config/intel_map.yaml" />
+
+  <!-- <arg name="filename_image" value="$(find random_walk)/config/maze.png" />
+  <arg name="filename_yaml" value="$(find random_walk)/config/maze.yaml" /> -->
+
+  <node pkg="random_walk" type="random_walk.py" name="random_walk" output="screen">
+
+    <param name="grid_step_size" type="int" value="15"/>
+    <param name="filename" type="string" value="$(arg filename_image)"/>
+    <param name="map_resolution" type="double" value="0.01"/>
+
+    <param name="start_node_idx" type="int" value="220"/>
+    <param name="random_walk_length" type="int" value="500"/>
+
+  </node>
+
+  
+  <node pkg="map_server" type="map_server" name="map_server" required="true" args="$(arg filename_yaml)" />
+  <node pkg="rviz" type="rviz" name="rviz" required="true" args="-d $(find random_walk)/launch/planner_conf.rviz" />
+
+</launch>
