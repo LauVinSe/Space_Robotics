@@ -241,23 +241,26 @@ class Graph:
                                 ## YOUR CODE HERE ##
                                 ## TASK 6         ##
                                 ####################
-                                energy_cost = distance # Comment this out once you've done this Task
+                                # energy_cost = distance # Comment this out once you've done this Task
                                 # energy_cost = ??
                                 
+                                # Constant
+                                mu = 0.1 # rolling resistance coefficien
+                                m = 1025 # [kg] Perseverance rover's mass
+                                g = 3.71 # [m/s^2] gravity on Mars
+                                
+                                horizontal_dist = node_i.distance_to(node_j)
+                                elevation_diff = self.map_.terrain_height_map_[node_j.x, node_j.y] - self.map_.terrain_height_map_[node_i.x, node_i.y]
+                                dx = math.sqrt(math.pow(horizontal_dist,2) + math.pow(elevation_diff,2)) # 3D Euclidean distance
 
+                                # Calculate the slope (theta)
+                                if horizontal_dist != 0:
+                                    theta = math.atan(elevation_diff / horizontal_dist)
+                                else:
+                                    theta = 0
 
-
-
-
-
-
-
-
-
-
-
-
-
+                                # Calculate the energy cost (E)
+                                energy_cost = abs((mu * m * g * math.cos(theta)) + (m * g * math.sin(theta)) * dx)
 
                             else:
 
