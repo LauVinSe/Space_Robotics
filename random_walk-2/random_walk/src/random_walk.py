@@ -364,6 +364,7 @@ class RandomWalk:
         # Add start to the path
         current = self.graph_.nodes_[self.start_node_idx_]
         path.append(current)
+        # current.random_walk_visited = True
 
         # Loop for self.random_walk_length_ steps
         for i in range(self.random_walk_length_):
@@ -372,14 +373,17 @@ class RandomWalk:
             if rospy.is_shutdown():
                 return
 
-
             ############
             ## STEP 1 ##
             ############
             # Extract the neighbours of the current node
             
             # neighbours = ??
+            neighbours = [neighbour for neighbour in current.neighbours if not neighbour.random_walk_visited]
 
+            # If there are no unvisited neighbours, break out of the loop
+            if len(neighbours) == 0:
+                neighbours = current.neighbours
 
             ############
             ## STEP 2 ##
@@ -388,6 +392,8 @@ class RandomWalk:
             # HINT: use random.randrange()
             
             # neighbour_idx = ??
+            neighbour_idx = random.randrange(len(neighbours))
+            next_node = neighbours[neighbour_idx]
 
             ############
             ## STEP 3 ##
@@ -396,7 +402,11 @@ class RandomWalk:
             # Hint: the solution will be similar to how the start_node was added to the path
             
             # ??
+            next_node.random_walk_visited = True
+            path.append(next_node)
 
+            # Set the current node to the selected neighbour
+            current = next_node
 
             # Plot the current path in rviz
             self.graph_.visualise_path(path)

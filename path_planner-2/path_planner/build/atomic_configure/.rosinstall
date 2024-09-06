@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/vincent/git/space-robotic/path_planner-2/path_planner/build/devel/setup.sh

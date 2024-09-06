@@ -182,9 +182,6 @@ class Graph:
         self.marker_pub_ = rospy.Publisher('marker', Marker, queue_size=20)
         
         # Select between grid or PRM
-
-        
-        
         if self.use_prm_:
             self.create_PRM()
         else:
@@ -371,13 +368,15 @@ class Graph:
             ## YOUR CODE HERE ##
             ## Task 1         ##
             ####################
-
+            node = self.nodes_[i]
             
+            dist = math.sqrt(math.pow((node.x - xy[0]),2) + math.pow((node.y - xy[1]),2))
 
+            if dist < best_dist:
+                best_dist = dist
+                best_index = i
 
-
-
-            pass # you can remove this line after you have filled in the above code
+            # pass # you can remove this line after you have filled in the above code
 
         return best_index
 
@@ -839,28 +838,28 @@ class GraphSearch:
             ## YOUR CODE HERE ##
             ## Task 2         ##
             ####################
-            pass # you can remove this later
+            best_neighbour = None
+            best_neighbour_dist = float('inf')
+
+            for neighbour in current.neighbours:
+                count_visit = path.count(neighbour)
+
+                if count_visit < 3:
+                    dist = neighbour.distance_to(self.graph_.nodes_[goal_idx]) + 100 * count_visit
+
+                    if dist < best_neighbour_dist:
+                        best_neighbour = neighbour
+                        best_neighbour_dist = dist
+
+            if best_neighbour == None:
+                break
+            else:
+                current = best_neighbour
+                path.append(current)
+            # pass # you can remove this later
             
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         return path
-
-
-
-
+    
     def search(self, start_idx, goal_idx):
         
         # Set all parents and costs to zero
@@ -888,20 +887,17 @@ class GraphSearch:
             ## YOUR CODE HERE ##
             ## Task 3         ##
             ####################
-
-            
-
-            
+            unvisited_idx  = self.get_minimum_cost_node(unvisited_set)
+            node_idx = unvisited_set[unvisited_idx]
+            current_node = self.graph_.nodes_[node_idx]
 
             ####################
             ## YOUR CODE HERE ##
             ## Task 3         ##
             ####################
             # Move the node to the visited set
-
-            
-
-            
+            visited_set.append(node_idx)
+            unvisited_set.remove(node_idx)            
 
             ####################
             ## YOUR CODE HERE ##
@@ -912,11 +908,10 @@ class GraphSearch:
             # if ??:
             #     rospy.loginfo("Goal found!")
             #     return
-
+            if current_node.idx == goal_idx:
+                rospy.loginfo("Goal found!")
+                return
             
-
-
-
             # For each neighbour of the node
             for neighbour_idx in range(len(self.graph_.nodes_[node_idx].neighbours)):
 
@@ -941,11 +936,9 @@ class GraphSearch:
                     ## YOUR CODE HERE ##
                     ## Task 3         ##
                     ####################
-
-                    
-                    
-
-
+                    cost_to_node = current_node.cost_to_node + neighbour_edge_cost
+                    cost_to_node_to_goal_heuristic = cost_to_node + neighbour.distance_to(self.graph_.nodes_[goal_idx]) * self.heuristic_weight_
+    
                     # Check if neighbours is already in unvisited
                     if neighbour.idx in unvisited_set:
 
@@ -957,14 +950,15 @@ class GraphSearch:
                         ## YOUR CODE HERE ##
                         ## Task 3         ##
                         ####################
-                        pass # you can remove this line after you've completed the task
+                        # pass # you can remove this line after you've completed the task
                         # if ??:
                         #     neighbour.parent_node = ??
                         #     neighbour.cost_to_node = ??
                         #     neighbour.cost_to_node_to_goal_heuristic = ??
-
-
-                        
+                        if cost_to_node_to_goal_heuristic < neighbour.cost_to_node_to_goal_heuristic:
+                            neighbour.parent_node = current_node
+                            neighbour.cost_to_node = cost_to_node
+                            neighbour.cost_to_node_to_goal_heuristic = cost_to_node_to_goal_heuristic                      
 
                     else:
 
@@ -981,11 +975,9 @@ class GraphSearch:
                         # neighbour.parent_node = ??
                         # neighbour.cost_to_node = ??
                         # neighbour.cost_to_node_to_goal_heuristic = ??
-
-                        
-
-
-
+                        neighbour.parent_node = current_node
+                        neighbour.cost_to_node = cost_to_node
+                        neighbour.cost_to_node_to_goal_heuristic = cost_to_node_to_goal_heuristic
                         
             # Visualise the current search status in RVIZ
             self.visualise_search(visited_set, unvisited_set, start_idx, goal_idx)
@@ -1019,10 +1011,13 @@ class GraphSearch:
         ## YOUR CODE HERE ##
         ## Task 4         ##
         ####################
+        # Track back from the goal node into start node
+        while current is not None:
+            path.append(current)
+            current = current.parent_node
 
-
-
-
+        # Reverese the path
+        path.reverse()
         
         return path
 
@@ -1081,33 +1076,35 @@ class PathSmoother():
         ## YOUR CODE HERE ##
         ## Task 5         ##
         ####################
-        
+        epsilon = 0.001
+        change = float('inf')
 
+        while change > epsilon:
+            change = 0.0
 
+            # Loop through all waypoints
+            for i in range(1, len(path) - 1):
+                s_i_prev = copy.deepcopy(path_smooth[i])
 
+                # Update the x and y coordinate of the smooth path using the provided formula
+                path_smooth[i].x = path_smooth[i].x - (alpha + 2 * beta) * path_smooth[i].x \
+                                   + alpha * path[i].x + beta * path_smooth[i - 1].x + beta * path_smooth[i + 1].x
+                
+                path_smooth[i].y = path_smooth[i].y - (alpha + 2 * beta) * path_smooth[i].y \
+                                   + alpha * path[i].y + beta * path_smooth[i - 1].y + beta * path_smooth[i + 1].y
 
+                # Check if the updated path goes through an obstacle
+                if is_occluded(self.graph_.map_.obstacle_map_, [path_smooth[i - 1].x, path_smooth[i - 1].y], 
+                                                [path_smooth[i].x, path_smooth[i].y]) or \
+                   is_occluded(self.graph_.map_.obstacle_map_, [path_smooth[i].x, path_smooth[i].y], 
+                                                [path_smooth[i + 1].x, path_smooth[i + 1].y]):
+                    
+                    # If it does, discard this update and revert to the previous point
+                    path_smooth[i] = s_i_prev
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                else:
+                    # Calculate the chang in the point
+                    change +=  math.pow(path_smooth[i].x - s_i_prev.x, 2) + math.pow(path_smooth[i].y - s_i_prev.y, 2)
 
         return path_smooth
 
