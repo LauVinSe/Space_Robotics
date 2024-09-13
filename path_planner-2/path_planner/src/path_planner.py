@@ -232,7 +232,7 @@ class Graph:
 
                         # Check edge is collision free
                         if node_i.is_connected(self.map_.obstacle_map_, node_j):
-
+                                                      
                             if self.use_energy_costs_:
 
                                 # Set the edge costs as estimated energy consumption
@@ -243,14 +243,19 @@ class Graph:
                                 ####################
                                 # energy_cost = distance # Comment this out once you've done this Task
                                 # energy_cost = ??
-                                
+
                                 # Constant
                                 mu = 0.1 # rolling resistance coefficien
                                 m = 1025 # [kg] Perseverance rover's mass
                                 g = 3.71 # [m/s^2] gravity on Mars
-                                
-                                horizontal_dist = node_i.distance_to(node_j)
-                                elevation_diff = self.map_.terrain_height_map_[node_j.x, node_j.y] - self.map_.terrain_height_map_[node_i.x, node_i.y]
+
+                                # Convert the pixel coordinates to world coordinates
+                                [world_x_i, world_y_i, world_z_i] = self.map_.pixel_to_world(node_i.x, node_i.y)
+                                [world_x_j, world_y_j, world_z_j] = self.map_.pixel_to_world(node_j.x, node_j.y)
+
+                                # Calculate the 3D Euclidean distance between the nodes
+                                horizontal_dist = math.sqrt(math.pow((world_x_j - world_x_i),2) + math.pow((world_y_j - world_y_i),2))
+                                elevation_diff = world_z_j - world_z_i
                                 dx = math.sqrt(math.pow(horizontal_dist,2) + math.pow(elevation_diff,2)) # 3D Euclidean distance
 
                                 # Calculate the slope (theta)
@@ -285,22 +290,22 @@ class Graph:
         ## Task 7         ##
         ####################
 
-        
+        # Create nodes randomly in the map
+        while idx < num_nodes:
+            if rospy.is_shutdown():
+                return
+            
+            # Randomly select x and y coordinates within the map boundaries
+            x = random.randint(self.map_.min_x_, self.map_.max_x_-1)
+            y = random.randint(self.map_.min_y_, self.map_.max_y_-1)
 
+            # Check if the node is in the free space
+            occupied = self.map_.is_occupied(x,y)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+            # Create the node if it is not in the occupied space
+            if not occupied:
+                self.nodes_.append(Node(x,y,idx))
+                idx += 1
 
         # Create edges
         count = 0
@@ -329,24 +334,31 @@ class Graph:
                                 ## YOUR CODE HERE         ##
                                 ## TASK 6 -- after TASK 7 ##
                                 ############################
-                                energy_cost = distance # Comment this out once you've done this Task
+                                # energy_cost = distance # Comment this out once you've done this Task
                                 # energy_cost = ??
-                                
 
-                                
+                                # Constant
+                                mu = 0.1 # rolling resistance coefficien
+                                m = 1025 # [kg] Perseverance rover's mass
+                                g = 3.71 # [m/s^2] gravity on Mars
 
+                                # Convert the pixel coordinates to world coordinates
+                                [world_x_i, world_y_i, world_z_i] = self.map_.pixel_to_world(node_i.x, node_i.y)
+                                [world_x_j, world_y_j, world_z_j] = self.map_.pixel_to_world(node_j.x, node_j.y)
 
+                                # Calculate the 3D Euclidean distance between the nodes
+                                horizontal_dist = math.sqrt(math.pow((world_x_j - world_x_i),2) + math.pow((world_y_j - world_y_i),2))
+                                elevation_diff = world_z_j - world_z_i
+                                dx = math.sqrt(math.pow(horizontal_dist,2) + math.pow(elevation_diff,2)) # 3D Euclidean distance
 
+                                # Calculate the slope (theta)
+                                if horizontal_dist != 0:
+                                    theta = math.atan(elevation_diff / horizontal_dist)
+                                else:
+                                    theta = 0
 
-
-
-
-
-
-
-
-
-
+                                # Calculate the energy cost (E)
+                                energy_cost = abs((mu * m * g * math.cos(theta)) + (m * g * math.sin(theta)) * dx)
 
                             else:
 
@@ -393,17 +405,26 @@ class Graph:
         ## YOUR CODE HERE ##
         ## Task 8         ##
         ####################
-        pass # Comment this out once you complete this method
-
+        # pass # Comment this out once you complete this method
+        groups = [-1] * len(self.nodes_)
+        current_group = 0
         
+        # Loop through all nodes
+        for idx, node in enumerate(self.nodes_):
+            # If the node is not in a group, perfrom a search to find all connected nodes
+            if groups[idx] == -1:
+                # Perform a search from the current node
+                connected_nodes = GraphSearch.find_connected_nodes(self, idx)
 
+                # Assign the group number to all connected nodes
+                for connected_node in connected_nodes:
+                    groups[connected_node] = current_group
 
-
-
-
+                # Increment the group number
+                current_group += 1
 
         # Save it here so it will show up in the visualisation as different colours
-        #self.groups_ = groups
+        self.groups_ = groups
 
 
     def visualise_graph(self):
@@ -1030,20 +1051,28 @@ class GraphSearch:
         # Except there's no goal_idx, and it returns a list of all node indices that have a valid path from start_idx
         # Hint 2: Can we use A* heuristic if there's no goal?
 
-        pass # added here to avoid whitespace issue
+        # pass # added here to avoid whitespace issue
 
         ####################
         ## YOUR CODE HERE ##
         ## Task 8         ##
         ####################
+        visited_set = []
+        unvisited_set = [start_idx]
 
+        while len(unvisited_set) > 0:
+            current_idx = unvisited_set.pop(0)
+
+            if current_idx not in visited_set:
+                visited_set.append(current_idx)
+
+                # add all neighbours to the unvisited set
+                for neighbour in self.nodes_[current_idx].neighbours:
+                    if neighbour.idx not in visited_set and neighbour.idx not in unvisited_set:
+                        unvisited_set.append(neighbour.idx)
         
-
-
-
-
-
-
+        # Return the list of connected nodes
+        return visited_set
 
     def visualise_search(self, visited_set, unvisited_set, start_idx, goal_idx):
         self.graph_.visualise_search(visited_set, unvisited_set, start_idx, goal_idx)
